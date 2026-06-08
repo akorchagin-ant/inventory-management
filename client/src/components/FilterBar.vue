@@ -106,12 +106,12 @@ export default {
   border-bottom: 1px solid #e2e8f0;
   padding: 0.75rem 0;
   position: sticky;
-  top: 70px;
-  z-index: 90;
+  top: 0; /* was 70px — header removed, now sticks to content-area top */
+  z-index: 40; /* below sidebar z-index: 50 so sidebar overlaps on narrow viewports */
 }
 
 .filters-container {
-  max-width: 1600px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 0 2rem;
   display: flex;

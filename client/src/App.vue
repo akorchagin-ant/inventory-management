@@ -1,42 +1,47 @@
 <template>
   <div class="app">
-    <header class="top-nav">
-      <div class="nav-container">
-        <div class="logo">
-          <h1>{{ t('nav.companyName') }}</h1>
-          <span class="subtitle">{{ t('nav.subtitle') }}</span>
-        </div>
-        <nav class="nav-tabs">
-          <router-link to="/" :class="{ active: $route.path === '/' }">
-            {{ t('nav.overview') }}
-          </router-link>
-          <router-link to="/inventory" :class="{ active: $route.path === '/inventory' }">
-            {{ t('nav.inventory') }}
-          </router-link>
-          <router-link to="/orders" :class="{ active: $route.path === '/orders' }">
-            {{ t('nav.orders') }}
-          </router-link>
-          <router-link to="/spending" :class="{ active: $route.path === '/spending' }">
-            {{ t('nav.finance') }}
-          </router-link>
-          <router-link to="/demand" :class="{ active: $route.path === '/demand' }">
-            {{ t('nav.demandForecast') }}
-          </router-link>
-          <router-link to="/reports" :class="{ active: $route.path === '/reports' }">
-            Reports
-          </router-link>
-        </nav>
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <h1>{{ t('nav.companyName') }}</h1>
+        <span class="sidebar-subtitle">{{ t('nav.subtitle') }}</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <router-link to="/" :class="{ active: $route.path === '/' }">
+          {{ t('nav.overview') }}
+        </router-link>
+        <router-link to="/inventory" :class="{ active: $route.path === '/inventory' }">
+          {{ t('nav.inventory') }}
+        </router-link>
+        <router-link to="/orders" :class="{ active: $route.path === '/orders' }">
+          {{ t('nav.orders') }}
+        </router-link>
+        <router-link to="/spending" :class="{ active: $route.path === '/spending' }">
+          {{ t('nav.finance') }}
+        </router-link>
+        <router-link to="/demand" :class="{ active: $route.path === '/demand' }">
+          {{ t('nav.demandForecast') }}
+        </router-link>
+        <router-link to="/reports" :class="{ active: $route.path === '/reports' }">
+          {{ t('nav.reports') }}
+        </router-link>
+      </nav>
+
+      <div class="sidebar-bottom">
         <LanguageSwitcher />
         <ProfileMenu
           @show-profile-details="showProfileDetails = true"
           @show-tasks="showTasks = true"
         />
       </div>
-    </header>
-    <FilterBar />
-    <main class="main-content">
-      <router-view />
-    </main>
+    </aside>
+
+    <div class="content-area">
+      <FilterBar />
+      <main class="main-content">
+        <router-view />
+      </main>
+    </div>
 
     <ProfileDetailsModal
       :is-open="showProfileDetails"
@@ -213,97 +218,84 @@ body {
 }
 
 .app {
-  display: flex;
-  flex-direction: column;
   min-height: 100vh;
 }
 
-.top-nav {
-  background: var(--color-bg-surface);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-  position: sticky;
+/* Fixed left sidebar — no overflow-y so bottom drop-up menus are not clipped */
+.sidebar {
+  position: fixed;
   top: 0;
-  z-index: 100;
-}
-
-.nav-container {
-  max-width: var(--content-max-width);
-  margin: 0 auto;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  background: var(--color-bg-surface);
+  border-right: 1px solid var(--color-border);
   display: flex;
-  align-items: center;
-  padding: 0 2rem;
-  height: 70px;
+  flex-direction: column;
+  z-index: 50;
 }
 
-.nav-container > .nav-tabs {
-  margin-left: auto;
-  margin-right: 1rem;
+.sidebar-logo {
+  padding: var(--space-5) var(--space-4);
 }
 
-.nav-container > .language-switcher {
-  margin-right: 1rem;
-}
-
-.logo {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-}
-
-.logo h1 {
-  font-size: 1.375rem;
-  font-weight: 700;
+.sidebar-logo h1 {
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--color-text-primary);
-  letter-spacing: -0.025em;
+  margin-bottom: var(--space-1);
 }
 
-.subtitle {
-  font-size: 0.813rem;
+.sidebar-subtitle {
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
-  font-weight: 400;
-  padding-left: 0.75rem;
-  border-left: 1px solid var(--color-border);
 }
 
-.nav-tabs {
+.sidebar-nav {
+  flex: 1;
+  padding: var(--space-3);
   display: flex;
-  gap: 0.25rem;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-.nav-tabs a {
-  padding: 0.625rem 1.25rem;
+.sidebar-nav a {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--color-text-secondary);
   text-decoration: none;
-  font-weight: 500;
-  font-size: 0.938rem;
-  border-radius: var(--radius-sm);
-  transition: all 0.2s ease;
-  position: relative;
+  transition: background 0.15s ease, color 0.15s ease;
+  /* No white-space: nowrap — Japanese labels are longer and must wrap */
 }
 
-.nav-tabs a:hover {
-  color: var(--color-text-primary);
+.sidebar-nav a:hover {
   background: var(--color-bg-hover);
+  color: var(--color-text-primary);
 }
 
-.nav-tabs a.active {
-  color: var(--color-primary);
+.sidebar-nav a.active {
   background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
-.nav-tabs a.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--color-primary);
+.sidebar-bottom {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Content column sits to the right of the fixed sidebar */
+.content-area {
+  margin-left: var(--sidebar-width);
 }
 
 .main-content {
-  flex: 1;
   max-width: var(--content-max-width);
   width: 100%;
   margin: 0 auto;
