@@ -210,7 +210,7 @@
                   </td>
                   <td>
                     <button
-                      v-if="!item.purchase_order_id"
+                      v-if="!item.has_purchase_order && !item.purchase_order_id"
                       @click.stop="openPOModal(item)"
                       class="po-button create"
                     >
@@ -304,12 +304,14 @@ import { useI18n } from '../composables/useI18n'
 import { formatCurrency } from '../utils/currency'
 import ProductDetailModal from '../components/ProductDetailModal.vue'
 import BacklogDetailModal from '../components/BacklogDetailModal.vue'
+import PurchaseOrderModal from '../components/PurchaseOrderModal.vue'
 
 export default {
   name: 'Dashboard',
   components: {
     ProductDetailModal,
     BacklogDetailModal,
+    PurchaseOrderModal,
   },
   setup() {
     const { t, currentCurrency, translateProductName, translateWarehouse } = useI18n()
@@ -668,6 +670,7 @@ export default {
       if (item) {
         item.purchase_order_id = poData.id
         item.purchase_order = poData
+        item.has_purchase_order = true
       }
       showPOModal.value = false
     }
@@ -814,32 +817,6 @@ export default {
 
 .chart-content {
   padding: var(--space-4);
-}
-
-.donut-chart {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3rem;
-}
-
-.donut-svg {
-  width: 200px;
-  height: 200px;
-}
-
-.donut-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  font-size: 0.875rem;
-  color: #475569;
 }
 
 .legend-dot {
@@ -989,82 +966,6 @@ export default {
   color: white;
 }
 
-.line-chart {
-  display: flex;
-  gap: var(--space-6);
-  height: 280px;
-}
-
-.line-y-axis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding-right: var(--space-4);
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  border-right: 1px solid var(--color-border);
-}
-
-.line-chart-area {
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-around;
-  gap: var(--space-2);
-}
-
-.line-bar-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  max-width: 80px;
-  gap: var(--space-2);
-}
-
-.line-bar-wrapper {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.line-bar {
-  width: 100%;
-  max-width: 60px;
-  min-height: 8px;
-  background: #3b82f6;
-  border-radius: 6px 6px 0 0;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-}
-
-.line-bar.empty-bar {
-  background: var(--color-border);
-  box-shadow: none;
-  min-height: 4px;
-}
-
-.line-bar:hover {
-  background: var(--color-primary);
-  transform: scaleY(1.05);
-}
-
-.line-bar.empty-bar:hover {
-  background: #cbd5e1;
-  transform: none;
-}
-
-.line-bar-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
 .no-data {
   padding: var(--space-8);
   text-align: center;
@@ -1101,130 +1002,6 @@ export default {
 
 .clickable-row:hover {
   background: var(--color-primary-soft) !important;
-}
-
-/* Tasks Card Styles */
-.tasks-card {
-  margin-bottom: var(--space-8);
-}
-
-.tasks-content {
-  padding: var(--space-6);
-}
-
-.task-input-container {
-  display: flex;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-
-.task-input {
-  flex: 1;
-  padding: var(--space-3);
-  border: 2px solid var(--color-border);
-  border-radius: 8px;
-  font-size: 0.95rem;
-  transition: border-color 0.2s ease;
-}
-
-.task-input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.task-add-btn {
-  padding: var(--space-3) var(--space-6);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.task-add-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-.task-add-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.no-tasks {
-  text-align: center;
-  padding: var(--space-8);
-  color: var(--color-text-secondary);
-  font-style: italic;
-}
-
-.tasks-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.task-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-bg-page);
-  border-radius: 8px;
-  border: 2px solid transparent;
-  transition: all 0.2s ease;
-}
-
-.task-item:hover {
-  border-color: var(--color-border);
-  background: var(--color-bg-surface);
-}
-
-.task-item.completed {
-  opacity: 0.6;
-}
-
-.task-item.completed .task-text {
-  text-decoration: line-through;
-  color: var(--color-text-muted);
-}
-
-.task-checkbox {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  accent-color: #667eea;
-}
-
-.task-text {
-  flex: 1;
-  cursor: pointer;
-  user-select: none;
-  color: var(--color-text-primary);
-  font-size: 0.95rem;
-}
-
-.task-delete-btn {
-  width: 28px;
-  height: 28px;
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.task-delete-btn:hover {
-  background: #dc2626;
-  transform: scale(1.1);
 }
 
 .po-button {

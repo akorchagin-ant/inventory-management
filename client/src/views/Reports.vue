@@ -125,94 +125,66 @@
 </template>
 
 <script>
-import axios from 'axios'
+import { ref, computed, onMounted } from 'vue'
+import { api } from '../api'
 
 export default {
   name: 'Reports',
-  data() {
-    return {
-      loading: true,
-      error: null,
-      quarterlyData: [],
-      monthlyData: [],
-      totalRevenue: 0,
-      avgMonthlyRevenue: 0,
-      totalOrders: 0,
-      bestQuarter: ''
-    }
-  },
-  mounted() {
-    console.log('Reports component mounted')
-    this.loadData()
-  },
-  methods: {
-    async loadData() {
-      console.log('Loading reports data...')
-      try {
-        this.loading = true
+  setup() {
+    const loading = ref(true)
+    const error = ref(null)
+    const quarterlyData = ref([])
+    const monthlyData = ref([])
 
-        // Fetch quarterly data
-        console.log('Fetching quarterly data...')
-        const quarterlyResponse = await axios.get('http://localhost:8001/api/reports/quarterly')
-        this.quarterlyData = quarterlyResponse.data
-        console.log('Quarterly data:', this.quarterlyData)
+    const totalRevenue = computed(() =>
+      monthlyData.value.reduce((sum, m) => sum + m.revenue, 0)
+    )
 
-        // Fetch monthly data
-        console.log('Fetching monthly data...')
-        const monthlyResponse = await axios.get('http://localhost:8001/api/reports/monthly-trends')
-        this.monthlyData = monthlyResponse.data
-        console.log('Monthly data:', this.monthlyData)
+    const avgMonthlyRevenue = computed(() =>
+      monthlyData.value.length > 0 ? totalRevenue.value / monthlyData.value.length : 0
+    )
 
-        // Calculate summary stats
-        console.log('Calculating summary stats...')
-        this.calculateSummaryStats()
-        console.log('Summary stats calculated')
+    const totalOrders = computed(() =>
+      monthlyData.value.reduce((sum, m) => sum + m.order_count, 0)
+    )
 
-      } catch (err) {
-        console.log('Error loading reports:', err)
-        this.error = 'Failed to load reports: ' + err.message
-      } finally {
-        this.loading = false
-        console.log('Loading complete')
-      }
-    },
-
-    calculateSummaryStats() {
-      // Calculate total revenue
-      var total = 0
-      for (var i = 0; i < this.monthlyData.length; i++) {
-        total = total + this.monthlyData[i].revenue
-      }
-      this.totalRevenue = total
-
-      // Calculate average monthly revenue
-      if (this.monthlyData.length > 0) {
-        this.avgMonthlyRevenue = total / this.monthlyData.length
-      } else {
-        this.avgMonthlyRevenue = 0
-      }
-
-      // Calculate total orders
-      var orders = 0
-      for (var i = 0; i < this.monthlyData.length; i++) {
-        orders = orders + this.monthlyData[i].order_count
-      }
-      this.totalOrders = orders
-
-      // Find best quarter
+    const bestQuarter = computed(() => {
       var bestQ = ''
       var bestRevenue = 0
-      for (var i = 0; i < this.quarterlyData.length; i++) {
-        if (this.quarterlyData[i].total_revenue > bestRevenue) {
-          bestRevenue = this.quarterlyData[i].total_revenue
-          bestQ = this.quarterlyData[i].quarter
+      for (var i = 0; i < quarterlyData.value.length; i++) {
+        if (quarterlyData.value[i].total_revenue > bestRevenue) {
+          bestRevenue = quarterlyData.value[i].total_revenue
+          bestQ = quarterlyData.value[i].quarter
         }
       }
-      this.bestQuarter = bestQ
-    },
+      return bestQ
+    })
 
-    formatNumber(num) {
-      console.log('Formatting number:', num)
+    const maxRevenue = computed(() => {
+      var max = 0
+      for (var i = 0; i < monthlyData.value.length; i++) {
+        if (monthlyData.value[i].revenue > max) {
+          max = monthlyData.value[i].revenue
+        }
+      }
+      return max
+    })
+
+    const loadData = async () => {
+      loading.value = true
+      error.value = null
+      try {
+        quarterlyData.value = await api.getQuarterlyReports()
+        monthlyData.value = await api.getMonthlyTrends()
+      } catch (err) {
+        console.error('Error loading reports:', err)
+        error.value = 'Failed to load reports: ' + err.message
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const formatNumber = (num) => {
       // Format number with commas
       var str = num.toString()
       var parts = str.split('.')
@@ -237,10 +209,9 @@ export default {
       }
 
       return formatted + '.' + decPart
-    },
+    }
 
-    formatMonth(monthStr) {
-      console.log('Formatting month:', monthStr)
+    const formatMonth = (monthStr) => {
       // Convert YYYY-MM to readable format
       var parts = monthStr.split('-')
       var year = parts[0]
@@ -250,27 +221,16 @@ export default {
       var monthIndex = parseInt(month) - 1
 
       return monthNames[monthIndex] + ' ' + year
-    },
+    }
 
-    getBarHeight(revenue) {
-      console.log('Calculating bar height for revenue:', revenue)
-      // Calculate bar height (max height 200px)
-      var maxRevenue = 0
-      for (var i = 0; i < this.monthlyData.length; i++) {
-        if (this.monthlyData[i].revenue > maxRevenue) {
-          maxRevenue = this.monthlyData[i].revenue
-        }
-      }
-
-      if (maxRevenue === 0) {
+    const getBarHeight = (revenue) => {
+      if (maxRevenue.value === 0) {
         return 0
       }
+      return (revenue / maxRevenue.value) * 200
+    }
 
-      var height = (revenue / maxRevenue) * 200
-      return height
-    },
-
-    getFulfillmentClass(rate) {
+    const getFulfillmentClass = (rate) => {
       if (rate >= 90) {
         return 'badge success'
       } else if (rate >= 75) {
@@ -278,20 +238,20 @@ export default {
       } else {
         return 'badge danger'
       }
-    },
+    }
 
-    getChangeValue(current, previous) {
+    const getChangeValue = (current, previous) => {
       var change = current - previous
       if (change > 0) {
-        return '+$' + this.formatNumber(change)
+        return '+$' + formatNumber(change)
       } else if (change < 0) {
-        return '-$' + this.formatNumber(Math.abs(change))
+        return '-$' + formatNumber(Math.abs(change))
       } else {
         return '$0.00'
       }
-    },
+    }
 
-    getChangeClass(current, previous) {
+    const getChangeClass = (current, previous) => {
       var change = current - previous
       if (change > 0) {
         return 'positive-change'
@@ -300,9 +260,9 @@ export default {
       } else {
         return ''
       }
-    },
+    }
 
-    getGrowthRate(current, previous) {
+    const getGrowthRate = (current, previous) => {
       if (previous === 0) {
         return 'N/A'
       }
@@ -311,6 +271,26 @@ export default {
       var sign = rate > 0 ? '+' : ''
 
       return sign + rate.toFixed(1) + '%'
+    }
+
+    onMounted(loadData)
+
+    return {
+      loading,
+      error,
+      quarterlyData,
+      monthlyData,
+      totalRevenue,
+      avgMonthlyRevenue,
+      totalOrders,
+      bestQuarter,
+      formatNumber,
+      formatMonth,
+      getBarHeight,
+      getFulfillmentClass,
+      getChangeValue,
+      getChangeClass,
+      getGrowthRate
     }
   }
 }
