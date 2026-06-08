@@ -91,6 +91,7 @@ const selectLanguage = (locale) => {
 <style scoped>
 .language-switcher {
   position: relative;
+  width: 100%;
 }
 
 .language-button {
@@ -106,6 +107,7 @@ const selectLanguage = (locale) => {
   font-family: inherit;
   font-size: 0.875rem;
   color: #334155;
+  width: 100%;
 }
 
 .language-button:hover {
@@ -134,13 +136,15 @@ const selectLanguage = (locale) => {
 
 .dropdown-menu {
   position: absolute;
-  top: calc(100% + 0.5rem);
-  right: 0;
+  bottom: calc(100% + 0.5rem); /* drop-up: opens above the trigger in the sidebar bottom block */
+  top: auto;
+  left: 0;
+  right: auto;
   min-width: 160px;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   z-index: 1000;
   overflow: hidden;
 }

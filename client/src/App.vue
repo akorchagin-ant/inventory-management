@@ -1,42 +1,47 @@
 <template>
   <div class="app">
-    <header class="top-nav">
-      <div class="nav-container">
-        <div class="logo">
-          <h1>{{ t('nav.companyName') }}</h1>
-          <span class="subtitle">{{ t('nav.subtitle') }}</span>
-        </div>
-        <nav class="nav-tabs">
-          <router-link to="/" :class="{ active: $route.path === '/' }">
-            {{ t('nav.overview') }}
-          </router-link>
-          <router-link to="/inventory" :class="{ active: $route.path === '/inventory' }">
-            {{ t('nav.inventory') }}
-          </router-link>
-          <router-link to="/orders" :class="{ active: $route.path === '/orders' }">
-            {{ t('nav.orders') }}
-          </router-link>
-          <router-link to="/spending" :class="{ active: $route.path === '/spending' }">
-            {{ t('nav.finance') }}
-          </router-link>
-          <router-link to="/demand" :class="{ active: $route.path === '/demand' }">
-            {{ t('nav.demandForecast') }}
-          </router-link>
-          <router-link to="/reports" :class="{ active: $route.path === '/reports' }">
-            Reports
-          </router-link>
-        </nav>
+    <aside class="sidebar" aria-label="Application sidebar">
+      <div class="sidebar-logo">
+        <h1>{{ t('nav.companyName') }}</h1>
+        <span class="sidebar-subtitle">{{ t('nav.subtitle') }}</span>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Main navigation">
+        <router-link to="/" :class="{ active: $route.path === '/' }">
+          {{ t('nav.overview') }}
+        </router-link>
+        <router-link to="/inventory" :class="{ active: $route.path === '/inventory' }">
+          {{ t('nav.inventory') }}
+        </router-link>
+        <router-link to="/orders" :class="{ active: $route.path === '/orders' }">
+          {{ t('nav.orders') }}
+        </router-link>
+        <router-link to="/spending" :class="{ active: $route.path === '/spending' }">
+          {{ t('nav.finance') }}
+        </router-link>
+        <router-link to="/demand" :class="{ active: $route.path === '/demand' }">
+          {{ t('nav.demandForecast') }}
+        </router-link>
+        <router-link to="/reports" :class="{ active: $route.path === '/reports' }">
+          {{ t('nav.reports') }}
+        </router-link>
+      </nav>
+
+      <div class="sidebar-bottom">
         <LanguageSwitcher />
         <ProfileMenu
           @show-profile-details="showProfileDetails = true"
           @show-tasks="showTasks = true"
         />
       </div>
-    </header>
-    <FilterBar />
-    <main class="main-content">
-      <router-view />
-    </main>
+    </aside>
+
+    <div class="content-area">
+      <FilterBar />
+      <main class="main-content">
+        <router-view />
+      </main>
+    </div>
 
     <ProfileDetailsModal
       :is-open="showProfileDetails"
@@ -162,6 +167,42 @@ export default {
 </script>
 
 <style>
+:root {
+  /* color */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-bg-page: #f8fafc;
+  --color-bg-surface: #ffffff;
+  --color-bg-hover: #f1f5f9;
+  --color-primary: #2563eb;
+  --color-primary-soft: #eff6ff;
+
+  /* spacing (4px scale) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* radius */
+  --radius-sm: 6px;   /* badges, buttons, nav pills */
+  --radius-md: 10px;  /* cards — canonical */
+  --radius-lg: 12px;  /* modals, dropdowns */
+
+  /* shadow — overlays only, never on cards */
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 12px rgb(15 23 42 / 0.10);
+
+  /* layout */
+  --sidebar-width: 240px;
+  --content-max-width: 1600px;
+  --content-padding: 2rem;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -170,108 +211,100 @@ export default {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: #f8fafc;
-  color: #1e293b;
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 .app {
-  display: flex;
-  flex-direction: column;
   min-height: 100vh;
 }
 
-.top-nav {
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-  position: sticky;
+/* Fixed left sidebar — no overflow-y so bottom drop-up menus are not clipped */
+.sidebar {
+  position: fixed;
   top: 0;
-  z-index: 100;
-}
-
-.nav-container {
-  max-width: 1600px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  padding: 0 2rem;
-  height: 70px;
-}
-
-.nav-container > .nav-tabs {
-  margin-left: auto;
-  margin-right: 1rem;
-}
-
-.nav-container > .language-switcher {
-  margin-right: 1rem;
-}
-
-.logo {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-}
-
-.logo h1 {
-  font-size: 1.375rem;
-  font-weight: 700;
-  color: #0f172a;
-  letter-spacing: -0.025em;
-}
-
-.subtitle {
-  font-size: 0.813rem;
-  color: #64748b;
-  font-weight: 400;
-  padding-left: 0.75rem;
-  border-left: 1px solid #e2e8f0;
-}
-
-.nav-tabs {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.nav-tabs a {
-  padding: 0.625rem 1.25rem;
-  color: #64748b;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.938rem;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  position: relative;
-}
-
-.nav-tabs a:hover {
-  color: #0f172a;
-  background: #f1f5f9;
-}
-
-.nav-tabs a.active {
-  color: #2563eb;
-  background: #eff6ff;
-}
-
-.nav-tabs a.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
   left: 0;
-  right: 0;
-  height: 2px;
-  background: #2563eb;
+  bottom: 0;
+  width: var(--sidebar-width);
+  background: var(--color-bg-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+}
+
+.sidebar-logo {
+  padding: var(--space-5) var(--space-4);
+}
+
+.sidebar-logo h1 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.sidebar-subtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sidebar-nav a {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+  /* No white-space: nowrap — Japanese labels are longer and must wrap */
+}
+
+.sidebar-nav a:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.sidebar-nav a.active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.sidebar-nav a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.sidebar-bottom {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Content column sits to the right of the fixed sidebar */
+.content-area {
+  margin-left: var(--sidebar-width);
 }
 
 .main-content {
-  flex: 1;
-  max-width: 1600px;
+  max-width: var(--content-max-width);
   width: 100%;
   margin: 0 auto;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem var(--content-padding);
 }
 
 .page-header {
@@ -281,13 +314,13 @@ body {
 .page-header h2 {
   font-size: 1.875rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--color-text-primary);
   margin-bottom: 0.375rem;
   letter-spacing: -0.025em;
 }
 
 .page-header p {
-  color: #64748b;
+  color: var(--color-text-secondary);
   font-size: 0.938rem;
 }
 
@@ -299,10 +332,10 @@ body {
 }
 
 .stat-card {
-  background: white;
+  background: var(--color-bg-surface);
   padding: 1.25rem;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
   transition: all 0.2s ease;
 }
 
@@ -312,7 +345,7 @@ body {
 }
 
 .stat-label {
-  color: #64748b;
+  color: var(--color-text-secondary);
   font-size: 0.875rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -323,7 +356,7 @@ body {
 .stat-value {
   font-size: 2.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--color-text-primary);
   letter-spacing: -0.025em;
 }
 
@@ -340,14 +373,14 @@ body {
 }
 
 .stat-card.info .stat-value {
-  color: #2563eb;
+  color: var(--color-primary);
 }
 
 .card {
-  background: white;
-  border-radius: 10px;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-md);
   padding: 1.25rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   margin-bottom: 1.25rem;
 }
 
@@ -357,13 +390,13 @@ body {
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.875rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .card-title {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--color-text-primary);
   letter-spacing: -0.025em;
 }
 
@@ -377,9 +410,9 @@ table {
 }
 
 thead {
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--color-bg-page);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 th {
@@ -394,7 +427,7 @@ th {
 
 td {
   padding: 0.5rem 0.75rem;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--color-bg-hover);
   color: #334155;
   font-size: 0.875rem;
 }
@@ -404,13 +437,13 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: #f8fafc;
+  background: var(--color-bg-page);
 }
 
 .badge {
   display: inline-block;
   padding: 0.313rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -470,7 +503,7 @@ tbody tr:hover {
 .loading {
   text-align: center;
   padding: 3rem;
-  color: #64748b;
+  color: var(--color-text-secondary);
   font-size: 0.938rem;
 }
 
@@ -482,5 +515,15 @@ tbody tr:hover {
   border-radius: 8px;
   margin: 1rem 0;
   font-size: 0.938rem;
+}
+
+/* Responsive layout: --sidebar-width drives both the aside width and the
+   content-area margin-left, so one override here shrinks the full layout
+   coherently — no extra selectors needed. */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 200px;
+    --content-padding: 1.5rem;
+  }
 }
 </style>

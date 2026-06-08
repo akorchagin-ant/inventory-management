@@ -120,6 +120,26 @@ class CreatePurchaseOrderRequest(BaseModel):
     expected_delivery_date: str
     notes: Optional[str] = None
 
+class Task(BaseModel):
+    # Field names are camelCase to match the frontend task shape
+    # (TasksModal renders task.dueDate / task.status directly).
+    id: str
+    title: str
+    priority: str
+    dueDate: Optional[str] = None
+    status: str = "pending"
+
+class CreateTaskRequest(BaseModel):
+    title: str
+    priority: str = "medium"
+    dueDate: Optional[str] = None
+
+# User tasks live in memory only, like the rest of the mock data:
+# a restart intentionally resets them. The frontend merges these with
+# the locale-specific mock tasks from useAuth.
+tasks: list = []
+_task_counter = 0
+
 # API endpoints
 @app.get("/")
 def root():
@@ -178,6 +198,82 @@ def get_backlog():
         item_dict["has_purchase_order"] = has_po
         result.append(item_dict)
     return result
+
+@app.get("/api/tasks", response_model=List[Task])
+def get_tasks():
+    """Get all user tasks"""
+    return tasks
+
+@app.post("/api/tasks", response_model=Task, status_code=201)
+def create_task(request: CreateTaskRequest):
+    """Create a new task"""
+    global _task_counter
+    _task_counter += 1
+    # Prefix avoids id collisions with the frontend's mock tasks,
+    # which use small integer ids (1-4).
+    task = {
+        "id": f"task-{_task_counter}",
+        "title": request.title,
+        "priority": request.priority,
+        "dueDate": request.dueDate,
+        "status": "pending",
+    }
+    tasks.append(task)
+    return task
+
+@app.patch("/api/tasks/{task_id}", response_model=Task)
+def toggle_task(task_id: str):
+    """Toggle a task between pending and completed"""
+    task = next((t for t in tasks if t["id"] == task_id), None)
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    task["status"] = "completed" if task["status"] == "pending" else "pending"
+    return task
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(task_id: str):
+    """Delete a task"""
+    task = next((t for t in tasks if t["id"] == task_id), None)
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    tasks.remove(task)
+    return {"deleted": task_id}
+
+@app.post("/api/purchase-orders", response_model=PurchaseOrder, status_code=201)
+def create_purchase_order(request: CreatePurchaseOrderRequest):
+    """Create a purchase order for a backlog item"""
+    backlog_item = next((b for b in backlog_items if b["id"] == request.backlog_item_id), None)
+    if not backlog_item:
+        raise HTTPException(status_code=404, detail=f"Backlog item {request.backlog_item_id} not found")
+
+    # One PO per backlog item: the UI switches Create PO -> View PO based
+    # on existence, so a duplicate would be unreachable from the frontend.
+    existing = next((po for po in purchase_orders if po["backlog_item_id"] == request.backlog_item_id), None)
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Backlog item {request.backlog_item_id} already has a purchase order")
+
+    from datetime import date
+    po = {
+        "id": f"PO-{len(purchase_orders) + 1:04d}",
+        "backlog_item_id": request.backlog_item_id,
+        "supplier_name": request.supplier_name,
+        "quantity": request.quantity,
+        "unit_cost": request.unit_cost,
+        "expected_delivery_date": request.expected_delivery_date,
+        "status": "Pending",
+        "created_date": date.today().isoformat(),
+        "notes": request.notes,
+    }
+    purchase_orders.append(po)
+    return po
+
+@app.get("/api/purchase-orders/{backlog_item_id}", response_model=PurchaseOrder)
+def get_purchase_order_by_backlog_item(backlog_item_id: str):
+    """Get the purchase order for a specific backlog item"""
+    po = next((po for po in purchase_orders if po["backlog_item_id"] == backlog_item_id), None)
+    if not po:
+        raise HTTPException(status_code=404, detail=f"No purchase order for backlog item {backlog_item_id}")
+    return po
 
 @app.get("/api/dashboard/summary")
 def get_dashboard_summary(

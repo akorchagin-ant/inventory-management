@@ -118,6 +118,7 @@ const handleLogout = () => {
 <style scoped>
 .profile-menu {
   position: relative;
+  width: 100%;
 }
 
 .profile-button {
@@ -131,6 +132,7 @@ const handleLogout = () => {
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
+  width: 100%;
 }
 
 .profile-button:hover {
@@ -169,13 +171,15 @@ const handleLogout = () => {
 
 .dropdown-menu {
   position: absolute;
-  top: calc(100% + 0.5rem);
-  right: 0;
-  min-width: 280px;
+  bottom: calc(100% + 0.5rem); /* drop-up: opens above the trigger in the sidebar bottom block */
+  top: auto;
+  left: 0;
+  right: auto;
+  min-width: 240px; /* may overhang sidebar right edge — z-index: 1000 puts it above content */
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   z-index: 1000;
   overflow: hidden;
 }
