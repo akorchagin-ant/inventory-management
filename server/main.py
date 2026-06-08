@@ -140,6 +140,16 @@ class CreateTaskRequest(BaseModel):
 tasks: list = []
 _task_counter = 0
 
+# FastAPI runs sync handlers in a threadpool, so concurrent requests can
+# interleave between a check and the mutation it guards (duplicate POs,
+# colliding ids). One lock serializes all writes to the in-memory state.
+import threading
+_write_lock = threading.Lock()
+
+# Monotonic counter for PO ids; seeded past any preloaded POs so ids stay
+# unique even though entries are never removed at runtime.
+_po_counter = len(purchase_orders)
+
 # API endpoints
 @app.get("/")
 def root():
@@ -208,63 +218,72 @@ def get_tasks():
 def create_task(request: CreateTaskRequest):
     """Create a new task"""
     global _task_counter
-    _task_counter += 1
-    # Prefix avoids id collisions with the frontend's mock tasks,
-    # which use small integer ids (1-4).
-    task = {
-        "id": f"task-{_task_counter}",
-        "title": request.title,
-        "priority": request.priority,
-        "dueDate": request.dueDate,
-        "status": "pending",
-    }
-    tasks.append(task)
+    with _write_lock:
+        _task_counter += 1
+        # Prefix avoids id collisions with the frontend's mock tasks,
+        # which use small integer ids (1-4).
+        task = {
+            "id": f"task-{_task_counter}",
+            "title": request.title,
+            "priority": request.priority,
+            "dueDate": request.dueDate,
+            "status": "pending",
+        }
+        tasks.append(task)
     return task
 
 @app.patch("/api/tasks/{task_id}", response_model=Task)
 def toggle_task(task_id: str):
     """Toggle a task between pending and completed"""
-    task = next((t for t in tasks if t["id"] == task_id), None)
-    if not task:
-        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    task["status"] = "completed" if task["status"] == "pending" else "pending"
+    with _write_lock:
+        task = next((t for t in tasks if t["id"] == task_id), None)
+        if not task:
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+        task["status"] = "completed" if task["status"] == "pending" else "pending"
     return task
 
 @app.delete("/api/tasks/{task_id}")
 def delete_task(task_id: str):
     """Delete a task"""
-    task = next((t for t in tasks if t["id"] == task_id), None)
-    if not task:
-        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    tasks.remove(task)
+    with _write_lock:
+        task = next((t for t in tasks if t["id"] == task_id), None)
+        if not task:
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+        tasks.remove(task)
     return {"deleted": task_id}
 
 @app.post("/api/purchase-orders", response_model=PurchaseOrder, status_code=201)
 def create_purchase_order(request: CreatePurchaseOrderRequest):
     """Create a purchase order for a backlog item"""
+    global _po_counter
     backlog_item = next((b for b in backlog_items if b["id"] == request.backlog_item_id), None)
     if not backlog_item:
         raise HTTPException(status_code=404, detail=f"Backlog item {request.backlog_item_id} not found")
 
-    # One PO per backlog item: the UI switches Create PO -> View PO based
-    # on existence, so a duplicate would be unreachable from the frontend.
-    existing = next((po for po in purchase_orders if po["backlog_item_id"] == request.backlog_item_id), None)
-    if existing:
-        raise HTTPException(status_code=400, detail=f"Backlog item {request.backlog_item_id} already has a purchase order")
-
     from datetime import date
-    po = {
-        "id": f"PO-{len(purchase_orders) + 1:04d}",
-        "backlog_item_id": request.backlog_item_id,
-        "supplier_name": request.supplier_name,
-        "quantity": request.quantity,
-        "unit_cost": request.unit_cost,
-        "expected_delivery_date": request.expected_delivery_date,
-        "status": "Pending",
-        "created_date": date.today().isoformat(),
-        "notes": request.notes,
-    }
-    purchase_orders.append(po)
+    # The duplicate check and the append must happen under the same lock,
+    # otherwise two concurrent requests can both pass the check and create
+    # two POs for one backlog item.
+    with _write_lock:
+        # One PO per backlog item: the UI switches Create PO -> View PO based
+        # on existence, so a duplicate would be unreachable from the frontend.
+        existing = next((po for po in purchase_orders if po["backlog_item_id"] == request.backlog_item_id), None)
+        if existing:
+            raise HTTPException(status_code=400, detail=f"Backlog item {request.backlog_item_id} already has a purchase order")
+
+        _po_counter += 1
+        po = {
+            "id": f"PO-{_po_counter:04d}",
+            "backlog_item_id": request.backlog_item_id,
+            "supplier_name": request.supplier_name,
+            "quantity": request.quantity,
+            "unit_cost": request.unit_cost,
+            "expected_delivery_date": request.expected_delivery_date,
+            "status": "Pending",
+            "created_date": date.today().isoformat(),
+            "notes": request.notes,
+        }
+        purchase_orders.append(po)
     return po
 
 @app.get("/api/purchase-orders/{backlog_item_id}", response_model=PurchaseOrder)
