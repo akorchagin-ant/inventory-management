@@ -1,12 +1,12 @@
 <template>
   <div class="app">
-    <aside class="sidebar">
+    <aside class="sidebar" aria-label="Application sidebar">
       <div class="sidebar-logo">
         <h1>{{ t('nav.companyName') }}</h1>
         <span class="sidebar-subtitle">{{ t('nav.subtitle') }}</span>
       </div>
 
-      <nav class="sidebar-nav">
+      <nav class="sidebar-nav" aria-label="Main navigation">
         <router-link to="/" :class="{ active: $route.path === '/' }">
           {{ t('nav.overview') }}
         </router-link>
@@ -212,7 +212,7 @@ export default {
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   background: var(--color-bg-page);
-  color: #1e293b;
+  color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -282,6 +282,11 @@ body {
   font-weight: 600;
 }
 
+.sidebar-nav a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .sidebar-bottom {
   border-top: 1px solid var(--color-border);
   padding: var(--space-3);
@@ -299,7 +304,7 @@ body {
   max-width: var(--content-max-width);
   width: 100%;
   margin: 0 auto;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem var(--content-padding);
 }
 
 .page-header {

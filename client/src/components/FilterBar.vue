@@ -102,8 +102,8 @@ export default {
 
 <style scoped>
 .filters-bar {
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--color-bg-page);
+  border-bottom: 1px solid var(--color-border);
   padding: 0.75rem 0;
   position: sticky;
   top: 0; /* was 70px — header removed, now sticks to content-area top */
@@ -136,7 +136,7 @@ export default {
 .filter-group label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
@@ -145,7 +145,7 @@ export default {
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   font-size: 0.813rem;
-  color: #0f172a;
+  color: var(--color-text-primary);
   background: white;
   cursor: pointer;
   transition: all 0.2s;
@@ -169,18 +169,18 @@ export default {
   justify-content: center;
   padding: 0.4rem;
   background: white;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  color: #64748b;
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
 }
 
 .reset-filters-btn:hover:not(:disabled) {
-  background: #f8fafc;
+  background: var(--color-bg-page);
   border-color: #cbd5e1;
-  color: #0f172a;
+  color: var(--color-text-primary);
 }
 
 .reset-filters-btn:disabled {
