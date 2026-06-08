@@ -364,6 +364,7 @@ export default {
   flex-direction: column;
   align-items: center;
   flex: 1;
+  min-width: 0; /* allows flex-shrink to work; overrides min-width: auto which was set to min-content */
   max-width: 80px;
 }
 

@@ -122,7 +122,8 @@ export default {
 .filters-grid {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  flex-wrap: wrap; /* prevents overflow at narrow widths; groups reflow to a second row */
+  gap: 1rem;       /* gap shorthand covers both row-gap and column-gap, so row spacing is free */
   flex: 1;
 }
 

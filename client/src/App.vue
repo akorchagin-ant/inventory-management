@@ -511,4 +511,14 @@ tbody tr:hover {
   margin: 1rem 0;
   font-size: 0.938rem;
 }
+
+/* Responsive layout: --sidebar-width drives both the aside width and the
+   content-area margin-left, so one override here shrinks the full layout
+   coherently — no extra selectors needed. */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 200px;
+    --content-padding: 1.5rem;
+  }
+}
 </style>
