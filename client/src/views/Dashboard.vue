@@ -297,10 +297,11 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
+import { useAsyncData } from '../composables/useAsyncData'
 import { formatCurrency } from '../utils/currency'
 import ProductDetailModal from '../components/ProductDetailModal.vue'
 import BacklogDetailModal from '../components/BacklogDetailModal.vue'
@@ -315,8 +316,6 @@ export default {
   },
   setup() {
     const { t, currentCurrency, translateProductName, translateWarehouse } = useI18n()
-    const loading = ref(true)
-    const error = ref(null)
     const summary = ref({})
     const allOrders = ref([])
     const inventoryItems = ref([])
@@ -561,27 +560,25 @@ export default {
     })
 
     const loadData = async () => {
-      try {
-        loading.value = true
-        const filters = getCurrentFilters()
+      const filters = getCurrentFilters()
 
-        const [summaryData, ordersData, inventoryData, backlogData] = await Promise.all([
-          api.getDashboardSummary(filters),
-          api.getOrders(filters),
-          api.getInventory(filters),
-          api.getBacklog()
-        ])
+      const [summaryData, ordersData, inventoryData, backlogData] = await Promise.all([
+        api.getDashboardSummary(filters),
+        api.getOrders(filters),
+        api.getInventory(filters),
+        api.getBacklog()
+      ])
 
-        summary.value = summaryData
-        allOrders.value = ordersData
-        inventoryItems.value = inventoryData
-        allBacklogItems.value = backlogData
-      } catch (err) {
-        error.value = 'Failed to load dashboard data: ' + err.message
-      } finally {
-        loading.value = false
-      }
+      summary.value = summaryData
+      allOrders.value = ordersData
+      inventoryItems.value = inventoryData
+      allBacklogItems.value = backlogData
     }
+
+    const { loading, error } = useAsyncData(loadData, {
+      watchSources: [selectedPeriod, selectedLocation, selectedCategory, selectedStatus],
+      errorMessage: 'Failed to load dashboard data'
+    })
 
     const calculatePercentage = (value, goal) => {
       return ((value / goal) * 100).toFixed(2)
@@ -674,13 +671,6 @@ export default {
       }
       showPOModal.value = false
     }
-
-    // Watch for filter changes and reload data
-    watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], () => {
-      loadData()
-    })
-
-    onMounted(loadData)
 
     return {
       t,

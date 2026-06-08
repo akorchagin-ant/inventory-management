@@ -84,10 +84,11 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
+import { useAsyncData } from '../composables/useAsyncData'
 import InventoryDetailModal from '../components/InventoryDetailModal.vue'
 
 export default {
@@ -102,8 +103,6 @@ export default {
       return currentCurrency.value === 'JPY' ? '¥' : '$'
     })
 
-    const loading = ref(true)
-    const error = ref(null)
     const items = ref([])
     const searchQuery = ref('')
 
@@ -149,26 +148,20 @@ export default {
       })
     })
 
-    const loadInventory = async () => {
-      try {
-        loading.value = true
+    const { loading, error } = useAsyncData(
+      async () => {
         const filters = getCurrentFilters()
         // Inventory doesn't support month/status filters, only warehouse and category
         items.value = await api.getInventory({
           warehouse: filters.warehouse,
           category: filters.category
         })
-      } catch (err) {
-        error.value = 'Failed to load inventory: ' + err.message
-      } finally {
-        loading.value = false
+      },
+      {
+        watchSources: [selectedLocation, selectedCategory],
+        errorMessage: 'Failed to load inventory'
       }
-    }
-
-    // Watch for filter changes and reload data
-    watch([selectedLocation, selectedCategory], () => {
-      loadInventory()
-    })
+    )
 
     const getStockStatus = (item) => {
       const key = getStockStatusKey(item)
@@ -200,8 +193,6 @@ export default {
       selectedItem.value = item
       showItemModal.value = true
     }
-
-    onMounted(loadInventory)
 
     return {
       t,

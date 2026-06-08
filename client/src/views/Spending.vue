@@ -172,11 +172,13 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
 import { formatCurrency as formatCurrencyUtil } from '../utils/currency'
+import { useAsyncData } from '../composables/useAsyncData'
+import { formatDateShort } from '../utils/format'
 import CostDetailModal from '../components/CostDetailModal.vue'
 
 export default {
@@ -186,8 +188,6 @@ export default {
   },
   setup() {
     const { t, currentCurrency } = useI18n()
-    const loading = ref(true)
-    const error = ref(null)
     const allMonthlySpending = ref([])
     const allCategorySpending = ref([])
     const allTransactions = ref([])
@@ -198,8 +198,8 @@ export default {
     const showCostModal = ref(false)
     const selectedCostData = ref(null)
 
-    // Use shared filters
-    const { selectedPeriod, getCurrentFilters } = useFilters()
+    // Use shared filters — all four so the watcher and API call cover every dimension
+    const { selectedPeriod, selectedLocation, selectedCategory, selectedStatus, getCurrentFilters } = useFilters()
 
     // Monthly spending chart always shows all months (not filtered)
     const monthlySpending = computed(() => {
@@ -262,18 +262,9 @@ export default {
       }
     })
 
-    // Filtered orders based on selected period
-    const filteredOrders = computed(() => {
-      if (selectedPeriod.value === 'all') {
-        return allOrders.value
-      }
-
-      // Filter orders by selected month
-      return allOrders.value.filter(order => {
-        const orderMonth = new Date(order.order_date).toISOString().slice(0, 7)
-        return orderMonth === selectedPeriod.value
-      })
-    })
+    // allOrders is already filtered by all four params via getCurrentFilters() passed to
+    // api.getOrders(); no client-side month filter needed (would double-apply the month param).
+    const filteredOrders = computed(() => allOrders.value)
 
     // Revenue metrics from filtered orders
     const revenueMetrics = computed(() => {
@@ -347,32 +338,26 @@ export default {
       return Math.ceil(max / 1000) // Return in K
     })
 
-    const loadData = async () => {
-      try {
-        loading.value = true
-        const [summaryRes, monthlyRes, categoryRes, transactionsRes, ordersRes] = await Promise.all([
-          api.getSpendingSummary(),
-          api.getMonthlySpending(),
-          api.getCategorySpending(),
-          api.getTransactions(),
-          api.getOrders()
-        ])
+    const fetchFn = async () => {
+      const [summaryRes, monthlyRes, categoryRes, transactionsRes, ordersRes] = await Promise.all([
+        api.getSpendingSummary(),
+        api.getMonthlySpending(),
+        api.getCategorySpending(),
+        api.getTransactions(),
+        api.getOrders(getCurrentFilters())   // FIX: pass all four filters to the orders endpoint
+      ])
 
-        summaryData.value = summaryRes
-        allMonthlySpending.value = monthlyRes
-        allCategorySpending.value = categoryRes
-        allTransactions.value = transactionsRes
-        allOrders.value = ordersRes
-      } catch (err) {
-        error.value = 'Failed to load financial data: ' + err.message
-      } finally {
-        loading.value = false
-      }
+      summaryData.value = summaryRes
+      allMonthlySpending.value = monthlyRes
+      allCategorySpending.value = categoryRes
+      allTransactions.value = transactionsRes
+      allOrders.value = ordersRes
     }
 
-    // Watch for period filter changes
-    watch([selectedPeriod], () => {
-      // Data will automatically update via computed properties
+    // useAsyncData owns loading/error state, onMounted, and watches all four filter refs
+    const { loading, error } = useAsyncData(fetchFn, {
+      watchSources: [selectedPeriod, selectedLocation, selectedCategory, selectedStatus],
+      errorMessage: 'Failed to load spending data'
     })
 
     const formatCurrency = (value) => {
@@ -391,21 +376,6 @@ export default {
     const getRevenueBarHeight = (value) => {
       const maxValue = maxRevenueValue.value * 1000
       return (value / maxValue) * 100
-    }
-
-    const formatDate = (dateString) => {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric'
-      })
-    }
-
-    const formatDateShort = (dateString) => {
-      const date = new Date(dateString)
-      const month = (date.getMonth() + 1).toString().padStart(2, '0')
-      const day = date.getDate().toString().padStart(2, '0')
-      const year = date.getFullYear().toString().slice(-2)
-      return `${month}/${day}/${year}`
     }
 
     const translateMonth = (month) => {
@@ -457,8 +427,6 @@ export default {
       showCostModal.value = true
     }
 
-    onMounted(loadData)
-
     return {
       t,
       loading,
@@ -477,7 +445,6 @@ export default {
       currencySymbol,
       getBarHeight,
       getRevenueBarHeight,
-      formatDate,
       formatDateShort,
       translateMonth,
       translateCategory,

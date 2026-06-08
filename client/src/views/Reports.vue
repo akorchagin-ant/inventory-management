@@ -25,7 +25,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(q, index) in quarterlyData" :key="index">
+              <tr v-for="q in quarterlyData" :key="q.quarter">
                 <td><strong>{{ q.quarter }}</strong></td>
                 <td>{{ q.total_orders }}</td>
                 <td>${{ formatNumber(q.total_revenue) }}</td>
@@ -48,7 +48,7 @@
         </div>
         <div class="chart-container">
           <div class="bar-chart">
-            <div v-for="(month, index) in monthlyData" :key="index" class="bar-wrapper">
+            <div v-for="month in monthlyData" :key="month.month" class="bar-wrapper">
               <div class="bar-container">
                 <div
                   class="bar"
@@ -79,7 +79,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(month, index) in monthlyData" :key="index">
+              <tr v-for="(month, index) in monthlyData" :key="month.month">
                 <td><strong>{{ formatMonth(month.month) }}</strong></td>
                 <td>{{ month.order_count }}</td>
                 <td>${{ formatNumber(month.revenue) }}</td>
@@ -125,16 +125,24 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from '../api'
+import { useAsyncData } from '../composables/useAsyncData'
+import { formatNumberFixed as formatNumber } from '../utils/format'
 
 export default {
   name: 'Reports',
   setup() {
-    const loading = ref(true)
-    const error = ref(null)
     const quarterlyData = ref([])
     const monthlyData = ref([])
+
+    const { loading, error } = useAsyncData(
+      async () => {
+        quarterlyData.value = await api.getQuarterlyReports()
+        monthlyData.value = await api.getMonthlyTrends()
+      },
+      { errorMessage: 'Failed to load reports' }
+    )
 
     const totalRevenue = computed(() =>
       monthlyData.value.reduce((sum, m) => sum + m.revenue, 0)
@@ -169,47 +177,6 @@ export default {
       }
       return max
     })
-
-    const loadData = async () => {
-      loading.value = true
-      error.value = null
-      try {
-        quarterlyData.value = await api.getQuarterlyReports()
-        monthlyData.value = await api.getMonthlyTrends()
-      } catch (err) {
-        console.error('Error loading reports:', err)
-        error.value = 'Failed to load reports: ' + err.message
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const formatNumber = (num) => {
-      // Format number with commas
-      var str = num.toString()
-      var parts = str.split('.')
-      var intPart = parts[0]
-      var decPart = parts.length > 1 ? parts[1] : '00'
-
-      var formatted = ''
-      var count = 0
-      for (var i = intPart.length - 1; i >= 0; i--) {
-        if (count > 0 && count % 3 === 0) {
-          formatted = ',' + formatted
-        }
-        formatted = intPart[i] + formatted
-        count++
-      }
-
-      if (decPart.length === 1) {
-        decPart = decPart + '0'
-      }
-      if (decPart.length > 2) {
-        decPart = decPart.substring(0, 2)
-      }
-
-      return formatted + '.' + decPart
-    }
 
     const formatMonth = (monthStr) => {
       // Convert YYYY-MM to readable format
@@ -272,8 +239,6 @@ export default {
 
       return sign + rate.toFixed(1) + '%'
     }
-
-    onMounted(loadData)
 
     return {
       loading,

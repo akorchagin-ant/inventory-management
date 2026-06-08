@@ -11,19 +11,19 @@
       <div class="stats-grid">
         <div class="stat-card success">
           <div class="stat-label">{{ t('status.delivered') }}</div>
-          <div class="stat-value">{{ getOrdersByStatus('Delivered').length }}</div>
+          <div class="stat-value">{{ statusCounts.delivered }}</div>
         </div>
         <div class="stat-card info">
           <div class="stat-label">{{ t('status.shipped') }}</div>
-          <div class="stat-value">{{ getOrdersByStatus('Shipped').length }}</div>
+          <div class="stat-value">{{ statusCounts.shipped }}</div>
         </div>
         <div class="stat-card warning">
           <div class="stat-label">{{ t('status.processing') }}</div>
-          <div class="stat-value">{{ getOrdersByStatus('Processing').length }}</div>
+          <div class="stat-value">{{ statusCounts.processing }}</div>
         </div>
         <div class="stat-card danger">
           <div class="stat-label">{{ t('status.backordered') }}</div>
-          <div class="stat-value">{{ getOrdersByStatus('Backordered').length }}</div>
+          <div class="stat-value">{{ statusCounts.backordered }}</div>
         </div>
       </div>
 
@@ -45,17 +45,17 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="order in orders" :key="order.id">
+              <tr v-for="order in displayOrders" :key="order.id">
                 <td class="col-order-number"><strong>{{ order.order_number }}</strong></td>
-                <td class="col-customer">{{ translateCustomerName(order.customer) }}</td>
+                <td class="col-customer">{{ order.customerDisplay }}</td>
                 <td class="col-items">
                   <details class="items-details">
                     <summary class="items-summary">
                       {{ t('orders.itemsCount', { count: order.items.length }) }}
                     </summary>
                     <div class="items-dropdown">
-                      <div v-for="(item, idx) in order.items" :key="idx" class="item-entry">
-                        <span class="item-name">{{ translateProductName(item.name) }}</span>
+                      <div v-for="item in order.items" :key="item.sku" class="item-entry">
+                        <span class="item-name">{{ item.nameDisplay }}</span>
                         <span class="item-meta">{{ t('orders.quantity') }}: {{ item.quantity }} @ {{ currencySymbol }}{{ item.unit_price }}</span>
                       </div>
                     </div>
@@ -66,8 +66,8 @@
                     {{ t(`status.${order.status.toLowerCase()}`) }}
                   </span>
                 </td>
-                <td class="col-date">{{ formatDate(order.order_date) }}</td>
-                <td class="col-date">{{ formatDate(order.expected_delivery) }}</td>
+                <td class="col-date">{{ order.orderDateDisplay }}</td>
+                <td class="col-date">{{ order.expectedDeliveryDisplay }}</td>
                 <td class="col-value"><strong>{{ currencySymbol }}{{ order.total_value.toLocaleString() }}</strong></td>
               </tr>
             </tbody>
@@ -79,24 +79,24 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
+import { useAsyncData } from '../composables/useAsyncData'
+import { formatDate } from '../utils/format'
 
 export default {
   name: 'Orders',
   setup() {
-    const { t, currentCurrency, translateProductName, translateCustomerName } = useI18n()
+    const { t, currentLocale, currentCurrency, translateProductName, translateCustomerName } = useI18n()
 
     const currencySymbol = computed(() => {
       return currentCurrency.value === 'JPY' ? '¥' : '$'
     })
-    const loading = ref(true)
-    const error = ref(null)
+
     const orders = ref([])
 
-    // Use shared filters
     const {
       selectedPeriod,
       selectedLocation,
@@ -105,33 +105,46 @@ export default {
       getCurrentFilters
     } = useFilters()
 
-    const loadOrders = async () => {
-      try {
-        loading.value = true
+    const { loading, error } = useAsyncData(
+      async () => {
         const filters = getCurrentFilters()
         const fetchedOrders = await api.getOrders(filters)
-
-        // Sort orders by order_date (earliest first)
-        orders.value = fetchedOrders.sort((a, b) => {
-          const dateA = new Date(a.order_date)
-          const dateB = new Date(b.order_date)
-          return dateA - dateB
-        })
-      } catch (err) {
-        error.value = 'Failed to load orders: ' + err.message
-      } finally {
-        loading.value = false
+        orders.value = fetchedOrders.sort((a, b) => new Date(a.order_date) - new Date(b.order_date))
+      },
+      {
+        watchSources: [selectedPeriod, selectedLocation, selectedCategory, selectedStatus],
+        errorMessage: 'Failed to load orders'
       }
-    }
+    )
 
-    // Watch for filter changes and reload data
-    watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], () => {
-      loadOrders()
+    // Single-pass count — avoids four separate array filters on every render.
+    const statusCounts = computed(() => {
+      const counts = { delivered: 0, shipped: 0, processing: 0, backordered: 0 }
+      for (const order of orders.value) {
+        if (order.status === 'Delivered') counts.delivered++
+        else if (order.status === 'Shipped') counts.shipped++
+        else if (order.status === 'Processing') counts.processing++
+        else if (order.status === 'Backordered') counts.backordered++
+      }
+      return counts
     })
 
-    const getOrdersByStatus = (status) => {
-      return orders.value.filter(order => order.status === status)
-    }
+    // Pre-formats every display field once per render cycle. Referencing
+    // currentLocale.value here makes the computed a dependency of the locale
+    // ref so the rows re-map whenever the language changes.
+    const displayOrders = computed(() => {
+      const locale = currentLocale.value === 'ja' ? 'ja-JP' : 'en-US'
+      return orders.value.map(order => ({
+        ...order,
+        customerDisplay: translateCustomerName(order.customer),
+        orderDateDisplay: formatDate(order.order_date, locale),
+        expectedDeliveryDisplay: formatDate(order.expected_delivery, locale),
+        items: order.items.map(item => ({
+          ...item,
+          nameDisplay: translateProductName(item.name)
+        }))
+      }))
+    })
 
     const getOrderStatusClass = (status) => {
       const statusMap = {
@@ -143,29 +156,15 @@ export default {
       return statusMap[status] || 'info'
     }
 
-    const formatDate = (dateString) => {
-      const { currentLocale } = useI18n()
-      const locale = currentLocale.value === 'ja' ? 'ja-JP' : 'en-US'
-      return new Date(dateString).toLocaleDateString(locale, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      })
-    }
-
-    onMounted(loadOrders)
-
     return {
       t,
       loading,
       error,
       orders,
-      getOrdersByStatus,
+      statusCounts,
+      displayOrders,
       getOrderStatusClass,
-      formatDate,
-      currencySymbol,
-      translateProductName,
-      translateCustomerName
+      currencySymbol
     }
   }
 }
@@ -234,7 +233,7 @@ export default {
 }
 
 .items-summary:hover {
-  color: #2563eb;
+  color: var(--color-primary);
   text-decoration: underline;
 }
 
@@ -245,7 +244,7 @@ export default {
   left: 0;
   margin-top: 0.5rem;
   background: white;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   padding: 0.75rem;
@@ -259,7 +258,7 @@ export default {
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.5rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--color-bg-hover);
 }
 
 .item-entry:last-child {
@@ -269,11 +268,11 @@ export default {
 .item-name {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #0f172a;
+  color: var(--color-text-primary);
 }
 
 .item-meta {
   font-size: 0.813rem;
-  color: #64748b;
+  color: var(--color-text-secondary);
 }
 </style>
