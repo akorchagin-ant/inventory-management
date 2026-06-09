@@ -1,175 +1,162 @@
 <template>
-  <Teleport to="body">
-    <Transition name="modal">
-      <div v-if="isOpen && backlogItem" class="modal-overlay" @click="close">
-        <div class="modal-container" @click.stop>
-          <div class="modal-header">
-            <h3 class="modal-title">
-              {{ mode === 'create' ? 'Create Purchase Order' : 'Purchase Order Details' }}
-            </h3>
-            <button class="close-button" @click="close">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
+  <BaseModal
+    :isOpen="isOpen && !!backlogItem"
+    :title="modalTitle"
+    maxWidth="580px"
+    @close="close"
+  >
+    <!-- Create mode -->
+    <form
+      v-if="mode === 'create'"
+      id="po-create-form"
+      class="po-form"
+      @submit.prevent="submitCreate"
+    >
+      <div class="item-context">
+        <div class="context-label">Backlog Item</div>
+        <div class="context-value">
+          {{ backlogItem.item_name }}
+          <span class="context-sku">{{ backlogItem.item_sku }}</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="po-supplier-name">
+          Supplier Name <span class="required">*</span>
+        </label>
+        <input
+          id="po-supplier-name"
+          v-model="form.supplier_name"
+          type="text"
+          class="form-input"
+          placeholder="Enter supplier name"
+          required
+        />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="po-quantity">
+            Quantity <span class="required">*</span>
+          </label>
+          <input
+            id="po-quantity"
+            v-model.number="form.quantity"
+            type="number"
+            class="form-input"
+            min="1"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="po-unit-cost">
+            Unit Cost ($) <span class="required">*</span>
+          </label>
+          <input
+            id="po-unit-cost"
+            v-model.number="form.unit_cost"
+            type="number"
+            class="form-input"
+            min="0"
+            step="0.01"
+            required
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="po-delivery-date">
+          Expected Delivery Date <span class="required">*</span>
+        </label>
+        <input
+          id="po-delivery-date"
+          v-model="form.expected_delivery_date"
+          type="date"
+          class="form-input"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="po-notes">Notes</label>
+        <textarea
+          id="po-notes"
+          v-model="form.notes"
+          class="form-input form-textarea"
+          rows="3"
+          placeholder="Optional notes..."
+        ></textarea>
+      </div>
+
+      <div v-if="submitError" class="inline-error">{{ submitError }}</div>
+    </form>
+
+    <!-- View mode -->
+    <div v-else>
+      <div v-if="fetchLoading" class="state-message">Loading purchase order...</div>
+      <div v-else-if="fetchError" class="inline-error">{{ fetchError }}</div>
+      <div v-else-if="purchaseOrder" class="po-detail">
+        <div class="po-detail-header">
+          <div class="po-id">PO #{{ purchaseOrder.id }}</div>
+          <span class="status-badge" :class="statusClass(purchaseOrder.status)">
+            {{ purchaseOrder.status }}
+          </span>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Supplier</div>
+            <div class="info-value">{{ purchaseOrder.supplier_name }}</div>
           </div>
-
-          <div class="modal-body">
-            <!-- Create mode -->
-            <form
-              v-if="mode === 'create'"
-              id="po-create-form"
-              class="po-form"
-              @submit.prevent="submitCreate"
-            >
-              <div class="item-context">
-                <div class="context-label">Backlog Item</div>
-                <div class="context-value">
-                  {{ backlogItem.item_name }}
-                  <span class="context-sku">{{ backlogItem.item_sku }}</span>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="po-supplier-name">
-                  Supplier Name <span class="required">*</span>
-                </label>
-                <input
-                  id="po-supplier-name"
-                  v-model="form.supplier_name"
-                  type="text"
-                  class="form-input"
-                  placeholder="Enter supplier name"
-                  required
-                />
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label" for="po-quantity">
-                    Quantity <span class="required">*</span>
-                  </label>
-                  <input
-                    id="po-quantity"
-                    v-model.number="form.quantity"
-                    type="number"
-                    class="form-input"
-                    min="1"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="po-unit-cost">
-                    Unit Cost ($) <span class="required">*</span>
-                  </label>
-                  <input
-                    id="po-unit-cost"
-                    v-model.number="form.unit_cost"
-                    type="number"
-                    class="form-input"
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="po-delivery-date">
-                  Expected Delivery Date <span class="required">*</span>
-                </label>
-                <input
-                  id="po-delivery-date"
-                  v-model="form.expected_delivery_date"
-                  type="date"
-                  class="form-input"
-                  required
-                />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="po-notes">Notes</label>
-                <textarea
-                  id="po-notes"
-                  v-model="form.notes"
-                  class="form-input form-textarea"
-                  rows="3"
-                  placeholder="Optional notes..."
-                ></textarea>
-              </div>
-
-              <div v-if="submitError" class="inline-error">{{ submitError }}</div>
-            </form>
-
-            <!-- View mode -->
-            <div v-else>
-              <div v-if="fetchLoading" class="state-message">Loading purchase order...</div>
-              <div v-else-if="fetchError" class="inline-error">{{ fetchError }}</div>
-              <div v-else-if="purchaseOrder" class="po-detail">
-                <div class="po-detail-header">
-                  <div class="po-id">PO #{{ purchaseOrder.id }}</div>
-                  <span class="status-badge" :class="statusClass(purchaseOrder.status)">
-                    {{ purchaseOrder.status }}
-                  </span>
-                </div>
-
-                <div class="info-grid">
-                  <div class="info-item">
-                    <div class="info-label">Supplier</div>
-                    <div class="info-value">{{ purchaseOrder.supplier_name }}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Quantity</div>
-                    <div class="info-value">{{ purchaseOrder.quantity }} units</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Unit Cost</div>
-                    <div class="info-value">${{ Number(purchaseOrder.unit_cost).toFixed(2) }}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Total Value</div>
-                    <div class="info-value total-value">
-                      ${{ (purchaseOrder.quantity * purchaseOrder.unit_cost).toFixed(2) }}
-                    </div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Expected Delivery</div>
-                    <div class="info-value">{{ formatDate(purchaseOrder.expected_delivery_date) }}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Created Date</div>
-                    <div class="info-value">{{ formatDate(purchaseOrder.created_date) }}</div>
-                  </div>
-                  <div v-if="purchaseOrder.notes" class="info-item info-item-full">
-                    <div class="info-label">Notes</div>
-                    <div class="info-value">{{ purchaseOrder.notes }}</div>
-                  </div>
-                </div>
-              </div>
+          <div class="info-item">
+            <div class="info-label">Quantity</div>
+            <div class="info-value">{{ purchaseOrder.quantity }} units</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Unit Cost</div>
+            <div class="info-value">${{ Number(purchaseOrder.unit_cost).toFixed(2) }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Total Value</div>
+            <div class="info-value total-value">
+              ${{ (purchaseOrder.quantity * purchaseOrder.unit_cost).toFixed(2) }}
             </div>
           </div>
-
-          <div class="modal-footer">
-            <button class="btn-secondary" @click="close">Close</button>
-            <button
-              v-if="mode === 'create'"
-              type="submit"
-              form="po-create-form"
-              class="btn-primary"
-              :disabled="submitLoading"
-            >
-              {{ submitLoading ? 'Creating...' : 'Create Purchase Order' }}
-            </button>
+          <div class="info-item">
+            <div class="info-label">Expected Delivery</div>
+            <div class="info-value">{{ formatDate(purchaseOrder.expected_delivery_date) }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Created Date</div>
+            <div class="info-value">{{ formatDate(purchaseOrder.created_date) }}</div>
+          </div>
+          <div v-if="purchaseOrder.notes" class="info-item info-item-full">
+            <div class="info-label">Notes</div>
+            <div class="info-value">{{ purchaseOrder.notes }}</div>
           </div>
         </div>
       </div>
-    </Transition>
-  </Teleport>
+    </div>
+
+    <template #footer>
+      <button class="btn-secondary" @click="close">Close</button>
+      <button
+        v-if="mode === 'create'"
+        type="submit"
+        form="po-create-form"
+        class="btn-primary"
+        :disabled="submitLoading"
+      >
+        {{ submitLoading ? 'Creating...' : 'Create Purchase Order' }}
+      </button>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { api } from '../api'
+import BaseModal from './BaseModal.vue'
 
 const props = defineProps({
   isOpen: {
@@ -187,6 +174,10 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'po-created'])
+
+const modalTitle = computed(() =>
+  props.mode === 'create' ? 'Create Purchase Order' : 'Purchase Order Details'
+)
 
 // Create mode state
 const form = ref({
@@ -294,79 +285,6 @@ const formatDate = (dateString) => {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 1rem;
-}
-
-.modal-container {
-  background: var(--color-bg-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  max-width: 580px;
-  width: 100%;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-6);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.modal-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  letter-spacing: -0.025em;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: var(--space-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  transition: all 0.15s ease;
-}
-
-.close-button:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
-}
-
-.modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-6);
-}
-
-.modal-footer {
-  padding: var(--space-6);
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-}
-
 /* Create form */
 .po-form {
   display: flex;
@@ -570,7 +488,7 @@ const formatDate = (dateString) => {
 }
 
 .btn-secondary:hover {
-  background: #e2e8f0;
+  background: var(--color-border);
   border-color: #cbd5e1;
 }
 
@@ -596,26 +514,5 @@ const formatDate = (dateString) => {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-/* Modal transition animations */
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
-  transition: transform 0.2s ease;
-}
-
-.modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
-  transform: scale(0.95);
 }
 </style>
